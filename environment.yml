@@ -4,6 +4,7 @@ channels:
   - bioconda
 dependencies:
   - python=3.11
+  - pyyaml
   - snakemake=7.32
   - fastqc
   - cutadapt

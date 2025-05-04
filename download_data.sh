@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-runs=(SRR12647619 SRR12647620)
 mkdir -p data/raw
-
-echo "Downloading runs: ${runs[*]}"
+runs=( $(grep '^[[:space:]]*-[[:space:]]*' config.yaml | sed 's/^[[:space:]]*-[[:space:]]*//') )
+echo "Runs: ${runs[*]}"
 for run in "${runs[@]}"; do
   report=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${run}&result=read_run&fields=fastq_ftp")
-  urls=$(echo "$report" | tail -n +2 | grep -o 'ftp[^[:space:]]*fastq\.gz')
-  while IFS= read -r url; do
+  urls=$(echo "$report" | grep -o 'ftp[^[:space:];]*\.fastq\.gz')
+  for url in $urls; do
     [[ $url == ftp://* ]] || url="ftp://$url"
-    wget -q -O "data/raw/$(basename "$url")" "$url"
-  done <<< "$urls"
+    wget --show-progress -P data/raw "$url"
+  done
 done
+ls -lh data/raw/*.fastq.gz || echo "No files found"
