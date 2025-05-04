@@ -2,3 +2,7 @@ rounds: [0,1,2,3,4,5,6]
 datasets: [DRA009383, DRA009384]
 adapter: AGATCGGAAGAGC
 threads: 8
+
+runs:
+  - SRR12647619
+  - SRR12647620
