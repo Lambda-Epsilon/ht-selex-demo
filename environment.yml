@@ -1,0 +1,16 @@
+name: htselex
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - snakemake=7.32
+  - fastqc
+  - cutadapt
+  - meme
+  - pandas
+  - matplotlib
+  - biopython
+  - pigz
+  - sra-tools
+  - pip
