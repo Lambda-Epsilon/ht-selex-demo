@@ -1,6 +1,5 @@
-data/
-results/
-
+/data/
+/results/
 
 .snake*
 *.snakemake*
@@ -17,16 +16,29 @@ __pycache__/
 micromamba/
 *.env
 *.yml.lock
+.venv/
 
+logs/
 *.log
 *.html
 *.zip
 *.png
+*tmp.fa
 
 .DS_Store
+Thumbs.db
 *.swp
 *.swo
 *.bak
-Thumbs.db
+
+.vscode/
+.idea/
 
 .ipynb_checkpoints/
+
+.mypy_cache/
+.pytest_cache/
+.cache/
+
+*.pid
+*.seed

@@ -1,48 +1,83 @@
-import yaml
 configfile: "config.yaml"
-ROUND = config["rounds"]
-DATASETS = config["datasets"]
-ADAPTER = config["adapter"]
-THREADS = int(config["threads"])
 
+# Load configuration
+ROUND    = config["rounds"]
+DATASETS = config["datasets"]
+ADAPTER  = config["adapter"]
+THREADS  = int(config["threads"])
+
+# Default target: enrichment, motifs, and plots for rounds > 0
 rule all:
     input:
         expand("results/{ds}/enrichment/enrichment_R{r}.tsv", ds=DATASETS, r=ROUND[1:]),
-        expand("results/{ds}/motifs/R{r}", ds=DATASETS, r=ROUND[1:]),
+        expand("results/{ds}/motifs/R{r}",             ds=DATASETS, r=ROUND[1:]),
         expand("results/{ds}/plots/enrichment_R{r}.png", ds=DATASETS, r=ROUND[1:])
 
 rule fastqc:
-    input: "data/raw/{file}.fastq.gz"
-    output: "results/{file}/qc/{file}_fastqc.zip"
-    shell: "fastqc -q -o results/{wildcards.file}/qc {input}"
+    input:
+        raw="data/raw/{ds}_R{r}.fastq.gz"
+    output:
+        zip="results/{ds}/qc/{ds}_R{r}_fastqc.zip"
+    shell:
+        """
+        mkdir -p results/{wildcards.ds}/qc
+        fastqc -q -o results/{wildcards.ds}/qc {input.raw}
+        """
 
 rule trim:
-    input: "data/raw/{file}.fastq.gz"
-    output: "results/{file}/trimmed/{file}.trimmed.fastq.gz"
-    shell: "cutadapt -j {THREADS} -a {ADAPTER} -o {output} {input}"
+    input:
+        raw="data/raw/{ds}_R{r}.fastq.gz"
+    output:
+        trimmed="results/{ds}/trimmed/{ds}_R{r}.trimmed.fastq.gz"
+    threads: THREADS
+    shell:
+        """
+        mkdir -p results/{wildcards.ds}/trimmed
+        cutadapt -j {threads} -a {ADAPTER} -o {output.trimmed} {input.raw}
+        """
 
 rule count:
-    input: "results/{file}/trimmed/{file}.trimmed.fastq.gz"
-    output: "results/{file}/counts/{file}.tsv"
-    script: "scripts/count_seqs.py"
+    input:
+        trimmed="results/{ds}/trimmed/{ds}_R{r}.trimmed.fastq.gz"
+    output:
+        counts="results/{ds}/counts/{ds}_R{r}.tsv"
+    shell:
+        """
+        mkdir -p results/{wildcards.ds}/counts
+        python scripts/count_seqs.py {input.trimmed} {output.counts}
+        """
 
 rule enrichment:
     input:
         round0="results/{ds}/counts/{ds}_R0.tsv",
-        other="results/{ds}/counts/{ds}_R{r}.tsv"
-    output: "results/{ds}/enrichment/enrichment_R{r}.tsv"
-    script: "scripts/calc_enrichment.py"
+        current="results/{ds}/counts/{ds}_R{r}.tsv"
+    output:
+        "results/{ds}/enrichment/enrichment_R{r}.tsv"
+    shell:
+        """
+        mkdir -p results/{wildcards.ds}/enrichment
+        python scripts/calc_enrichment.py {input.round0} {input.current} {output}
+        """
 
 rule meme:
-    input: "results/{ds}/enrichment/enrichment_R{r}.tsv"
-    output: directory("results/{ds}/motifs/R{r}")
-    shell: """
-    awk '{print ">"NR"\\n"$1}' {input} | head -n 2000 > tmp.fa
-    meme tmp.fa -oc {output} -dna -mod zoops -nmotifs 5 -minw 6 -maxw 12
-    rm tmp.fa
-    """
+    input:
+        "results/{ds}/enrichment/enrichment_R{r}.tsv"
+    output:
+        directory("results/{ds}/motifs/R{r}")
+    log:
+        "logs/meme_{ds}_R{r}.log"
+    shell:
+        "python scripts/run_meme.py {input} {output} {log}"
+
 
 rule plot:
-    input: "results/{ds}/enrichment/enrichment_R{r}.tsv"
-    output: "results/{ds}/plots/enrichment_R{r}.png"
-    script: "scripts/plot_enrichment.py"
+    input:
+        "results/{ds}/enrichment/enrichment_R{r}.tsv"
+    output:
+        "results/{ds}/plots/enrichment_R{r}.png"
+    threads: THREADS
+    shell:
+        """
+        mkdir -p results/{wildcards.ds}/plots
+        python scripts/plot_enrichment.py {input} {output}
+        """
